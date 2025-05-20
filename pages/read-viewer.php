@@ -9,6 +9,7 @@ $file = $_GET['file'] ?? null;
 $ext = '';
 $relativePath = '';
 
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fileUpload = $_FILES['book_file'] ?? null;
     $cover = $_FILES['cover_image'] ?? null;
@@ -89,21 +90,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </style>
 </head>
 <body>
+  <!---Shows the bookreader frame--->
 <div class="container mt-4">
-  <?php if (!$file): ?>
-    <h4 class="mb-3">📤 Upload a New Book</h4>
-    <form action="" method="POST" enctype="multipart/form-data" class="border p-4 bg-light rounded shadow">
-      <div class="mb-3"><label class="form-label">Title</label><input type="text" name="nombre" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Author</label><input type="text" name="autor" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Year</label><input type="text" name="fecha" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Language</label><input type="text" name="language" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Book File (.epub, .pdf, .txt)</label><input type="file" name="book_file" accept=".epub,.pdf,.txt" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Cover Image (optional)</label><input type="file" name="cover_image" accept="image/*" class="form-control"></div>
-      <button type="submit" class="btn btn-primary w-100">Upload</button>
-    </form>
+  <?php if (!$file): header("Location: upload-form.php")?>
   <?php else: ?>
-    <h4 class="mb-3">📖 Reading: <?= htmlspecialchars($file) ?></h4>
 
+    <!--Add a Bookmark-->
+    <form action="add-bookmark.php" method="post">
+      <input type="hidden" name="file" value="<?= htmlspecialchars($file) ?>">
+      <button type="submit" class="btn btn-outline-primary mb-3">📌 Add to Bookmarks</button>
+    </form>
+    <!--Add Bookmark ends-->
+
+    <h4 class="mb-3">📖 Reading: <?= htmlspecialchars($file) ?></h4>
     <?php if ($ext === 'pdf'): ?>
       <iframe src="<?= '../books/' . rawurlencode($file) ?>" width="100%" height="90vh"></iframe>
       <p class="text-danger mt-2">⚠️ Your browser does not support embedded PDFs. 
