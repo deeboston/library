@@ -12,12 +12,15 @@ if (!isAdmin()) {
 $totalBooks = $conn->query("SELECT COUNT(*) FROM libros")->fetch_row()[0];
 $totalUsers = $conn->query("SELECT COUNT(*) FROM usuario")->fetch_row()[0];
 $pendingRequests = $conn->query("SELECT COUNT(*) FROM delete_requests")->fetch_row()[0];
-$latestBooks = $conn->query("SELECT id, nombre, autor, fecha, created_at, resumen FROM libros ORDER BY created_at DESC LIMIT 5");
+$latestBooks = $conn->query("SELECT id, nombre, autor, fecha, created_at, description FROM libros ORDER BY created_at DESC LIMIT 5");
+
+
 
 // Monthly statistics for charts
 $booksPerMonth = $conn->query("SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS count FROM libros GROUP BY month ORDER BY month");
-$usersPerMonth = $conn->query("SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS count FROM usuario GROUP BY month ORDER BY month");
-$categoryStats = $conn->query("SELECT categoria, COUNT(*) AS count FROM libros GROUP BY categoria");
+/*$usersPerMonth = $conn->query("SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS count FROM usuario GROUP BY month ORDER BY month");*/
+$categoryStats = $conn->query("SELECT genero, COUNT(*) AS count FROM libros GROUP BY genero");
+
 ?>
 
 <!DOCTYPE html>
@@ -133,7 +136,7 @@ $categoryStats = $conn->query("SELECT categoria, COUNT(*) AS count FROM libros G
               <td><?= htmlspecialchars($book['fecha']) ?></td>
               <td><?= htmlspecialchars($book['created_at']) ?></td>
               <td>
-                <?php if (!empty($book['resumen'])): ?>
+                <?php if (!empty($book['description'])): ?>
                   <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#summaryModal<?= $book['id'] ?>">View</button>
 
                   <!-- Summary Modal -->
@@ -145,7 +148,7 @@ $categoryStats = $conn->query("SELECT categoria, COUNT(*) AS count FROM libros G
                           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                          <p><?= nl2br(htmlspecialchars($book['resumen'])) ?></p>
+                          <p><?= nl2br(htmlspecialchars($book['description'])) ?></p>
                         </div>
                       </div>
                     </div>

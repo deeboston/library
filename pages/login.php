@@ -3,6 +3,7 @@ require_once '../includes/functions.php';
 require_once '../includes/session.php';
 require_once '../includes/db.php';
 
+
 $message = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -17,9 +18,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $result = $stmt->get_result();
 
     if ($user = $result->fetch_assoc()) {
+        var_dump($user); // Añadir aquí para debug
         if (password_verify($password, $user['password'])) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
+            $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
 
             if ($user['role'] === 'admin') {

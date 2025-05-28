@@ -137,9 +137,9 @@ $books = $conn->query("SELECT * FROM libros ORDER BY created_at DESC");
     <p class="mt-2 small">Welcome, <strong><?= htmlspecialchars(getCurrentUsername()) ?></strong></p>
     <ul class="nav flex-column mt-4">
       <li class="nav-item"><a href="user-dashboard.php" class="nav-link"><i class="bi bi-house-door me-2"></i>Dashboard</a></li>
+      <li class="nav-item"><a href="profile-update.php" class="nav-link"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
       <li class="nav-item"><a href="upload-form.php" class="nav-link"><i class="bi bi-upload me-2"></i>Upload Book</a></li>
-      <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-book-half me-2"></i>Read</a></li>
-      <li class="nav-item"><a href="#" class="nav-link"><i class="bi bi-bookmark me-2"></i>Bookmarks</a></li>
+      <li class="nav-item"><a href="save-books.php" class="nav-link"><i class="bi bi-bookmark me-2"></i>Bookmarks</a></li>
       <li class="nav-item mt-4"><a href="../logout.php" class="nav-link"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
     </ul>
   </div>
@@ -171,7 +171,7 @@ $books = $conn->query("SELECT * FROM libros ORDER BY created_at DESC");
                 <?= htmlspecialchars($book['nombre']) ?>
               </h6>
               <p class="small mt-2 text-secondary">
-                <?= htmlspecialchars($book['resumen']) ?: 'No summary available.' ?>
+                <?= htmlspecialchars($book['description']) ?: 'No summary available.' ?>
               </p>
               <?php if (!empty($book['preview'])): ?>
                 <button type="button" class="btn btn-outline-secondary btn-sm w-100 mb-2" data-bs-toggle="modal" data-bs-target="#previewModal<?= $book['id'] ?>">
@@ -195,6 +195,21 @@ $books = $conn->query("SELECT * FROM libros ORDER BY created_at DESC");
               <p class="text-muted small mb-1">By <?= htmlspecialchars($book['autor']) ?></p>
               <p class="text-muted small mb-2">📅 <?= htmlspecialchars($book['fecha']) ?> | 🌐 <?= htmlspecialchars($book['language']) ?></p>
               <a href="read-viewer.php?file=<?= urlencode($book['file_path']) ?>" class="btn btn-primary btn-sm w-100">Read Now</a>
+                            <!-- Espacio entre botones -->
+              <div style="height:8px;"></div>
+
+              <!-- Botón que recarga la página con ?request_delete=ID -->
+              <a href="?request_delete=<?= $book['id'] ?>" class="btn btn-outline-warning btn-sm w-100 mb-2">
+                Request Deletion
+              </a>
+
+              <?php if (isset($_GET['request_delete']) && $_GET['request_delete'] == $book['id']): ?>
+                <form method="POST" action="submit-deletion-request.php" class="mb-3">
+                  <input type="hidden" name="book_id" value="<?= $book['id'] ?>">
+                  <textarea name="reason" placeholder="Reason for deletion" class="form-control form-control-sm mb-1" rows="2" required></textarea>
+                  <button type="submit" class="btn btn-warning btn-sm w-100">Send Request</button>
+                </form>
+<?php endif; ?>
             </div>
           </div>
         </div>
