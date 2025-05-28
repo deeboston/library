@@ -5,65 +5,20 @@ require_once '../includes/db.php';
 
 redirectIfNotLoggedIn();
 
+$user = userIs();
+$userId = $user['user_id'] ?? null;
+
+if (!$userId) {
+    die("⚠️ El ID del usuario no está disponible en la sesión.");
+}
+
 $file = $_GET['file'] ?? null;
 $ext = '';
 $relativePath = '';
+$guardado = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $fileUpload = $_FILES['book_file'] ?? null;
-    $cover = $_FILES['cover_image'] ?? null;
 
-    if (!$fileUpload || $fileUpload['error'] !== UPLOAD_ERR_OK) {
-        exit('❌ Book upload failed.');
-    }
-
-    $ext = strtolower(pathinfo($fileUpload['name'], PATHINFO_EXTENSION));
-    $newFileName = uniqid() . '-' . basename($fileUpload['name']);
-    $destPath = "../books/" . $newFileName;
-
-    if (!move_uploaded_file($fileUpload['tmp_name'], $destPath)) {
-        exit('❌ Failed to save uploaded book.');
-    }
-
-    $title = $_POST['nombre'] ?? pathinfo($fileUpload['name'], PATHINFO_FILENAME);
-    $author = $_POST['autor'] ?? 'Unknown';
-    $year = $_POST['fecha'] ?? date('Y');
-    $language = $_POST['language'] ?? 'Unknown';
-    $coverName = '';
-
-    if ($cover && $cover['error'] === UPLOAD_ERR_OK) {
-        $coverName = uniqid() . '-' . basename($cover['name']);
-        move_uploaded_file($cover['tmp_name'], "../assets/images/" . $coverName);
-    }
-
-    // Try to extract metadata from EPUB
-    if ($ext === 'epub') {
-        $zip = new ZipArchive();
-        if ($zip->open($destPath) === TRUE) {
-            $containerXml = $zip->getFromName("META-INF/container.xml");
-            if ($containerXml) {
-                $container = new SimpleXMLElement($containerXml);
-                $opfPath = (string) $container->rootfiles->rootfile['full-path'];
-                $opfContent = $zip->getFromName($opfPath);
-                if ($opfContent) {
-                    $opf = new SimpleXMLElement($opfContent);
-                    $dc = $opf->children('http://www.idpf.org/2007/opf')->metadata->children('http://purl.org/dc/elements/1.1/');
-                    $title = (string) ($dc->title ?? $title);
-                    $author = (string) ($dc->creator ?? $author);
-                    $language = (string) ($dc->language ?? $language);
-                }
-            }
-            $zip->close();
-        }
-    }
-
-    $stmt = $conn->prepare("INSERT INTO libros (nombre, autor, fecha, language, file_path, cover_image) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssss", $title, $author, $year, $language, $newFileName, $coverName);
-    $stmt->execute();
-
-    header('Location: user-dashboard.php?upload=success');
-    exit;
-} elseif ($file) {
+if ($file) {
     $file = basename($file);
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     $relativePath = realpath(__DIR__ . '/../books/' . $file);
@@ -71,73 +26,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "<h2>❌ File not found</h2>";
         exit;
     }
+} else {
+    header("Location: upload-form.php");
+    exit;
 }
+
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title><?= $file ? 'Reading ' . htmlspecialchars($file) : 'Upload Book' ?></title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <style>
-    iframe, .epub-container, .text-viewer {
-      width: 100%;
-      height: 90vh;
-      border: none;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <title>Lectura: <?= htmlspecialchars($file) ?></title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  body {
+    background-color: #f9fafb;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .sidebar {
+    width: 220px;
+    background-color: #111827;
+    color: #fff;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1rem;
+    z-index: 1000;
+  }
+  .sidebar img.logo {
+    width: 36px;
+    margin-bottom: 1rem;
+  }
+  .sidebar .nav-link {
+    color: #d1d5db;
+    padding: 8px 0;
+    font-size: 0.9rem;
+  }
+  .sidebar .nav-link:hover {
+    color: #fff;
+  }
+  .main-content {
+    margin-left: 240px;
+    padding: 2rem;
+  }
+  iframe, .epub-container {
+    width: 100%;
+    height: 90vh;
+    border: none;
+  }
+</style>
+
 </head>
 <body>
-<div class="container mt-4">
-  <?php if (!$file): ?>
-    <h4 class="mb-3">📤 Upload a New Book</h4>
-    <form action="" method="POST" enctype="multipart/form-data" class="border p-4 bg-light rounded shadow">
-      <div class="mb-3"><label class="form-label">Title</label><input type="text" name="nombre" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Author</label><input type="text" name="autor" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Year</label><input type="text" name="fecha" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Language</label><input type="text" name="language" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Book File (.epub, .pdf, .txt)</label><input type="file" name="book_file" accept=".epub,.pdf,.txt" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Cover Image (optional)</label><input type="file" name="cover_image" accept="image/*" class="form-control"></div>
-      <button type="submit" class="btn btn-primary w-100">Upload</button>
-    </form>
-  <?php else: ?>
-    <h4 class="mb-3">📖 Reading: <?= htmlspecialchars($file) ?></h4>
+<body>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <img src="../assets/images/edulibrary logo.png" alt="EduLibrary Logo" class="logo">
+    <p class="mt-2 small">Welcome, <strong><?= htmlspecialchars(getCurrentUsername()) ?></strong></p>
+    <ul class="nav flex-column mt-4">
+      <li class="nav-item"><a href="user-dashboard.php" class="nav-link"><i class="bi bi-house-door me-2"></i>Dashboard</a></li>
+      <li class="nav-item"><a href="profile-update.php" class="nav-link"><i class="bi bi-person-circle me-2"></i>Profile</a></li>
+      <li class="nav-item"><a href="upload-form.php" class="nav-link"><i class="bi bi-upload me-2"></i>Upload Book</a></li>
+      <li class="nav-item"><a href="save-books.php" class="nav-link"><i class="bi bi-bookmark me-2"></i>Bookmarks</a></li>
+      <li class="nav-item mt-4"><a href="../logout.php" class="nav-link"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+    </ul>
+  </div>
 
-    <?php if ($ext === 'pdf'): ?>
-      <iframe src="<?= '../books/' . rawurlencode($file) ?>" width="100%" height="90vh"></iframe>
-      <p class="text-danger mt-2">⚠️ Your browser does not support embedded PDFs. 
-      <a href="<?= '../books/' . rawurlencode($file) ?>" target="_blank">Download it here</a>.</p>
+  <!-- Main content -->
+  <div class="main-content">
+    <div class="container mt-4">
 
-    <?php elseif ($ext === 'txt'): ?>
-      <div class="text-viewer border p-3 bg-light overflow-auto">
-        <pre><?= htmlspecialchars(file_get_contents($relativePath)) ?></pre>
+      <!-- Botón de bookmark -->
+      <div class="d-flex mb-3 gap-2">
+        <form action="add-bookmark.php" method="post" class="m-0">
+          <input type="hidden" name="file" value="<?= htmlspecialchars($file) ?>">
+          <button type="submit" class="btn btn-primary">📌 Add to Bookmarks</button>
+        </form>
       </div>
 
-    <?php elseif ($ext === 'epub'): ?>
-      <div id="epub-reader" class="epub-container border d-flex align-items-center justify-content-center">
-        <p>📘 Loading EPUB...</p>
-      </div>
-      <script src="../assets/js/epub.min.js"></script>
-      <script>
-        const book = ePub("../books/<?= rawurlencode($file) ?>");
-        const rendition = book.renderTo("epub-reader", { width: "100%", height: "90vh" });
-        rendition.display();
-        book.ready.then(() => {
-          console.log("✅ Book ready");
-          return book.loaded.navigation;
-        }).then(nav => {
-          console.log("📚 TOC:", nav.toc);
-        }).catch(err => {
-          console.error("❌ EPUB Load Error:", err);
-          document.getElementById("epub-reader").innerHTML = "<p class='text-danger'>⚠️ Failed to load EPUB</p>";
-        });
-      </script>
+      <!-- Contenido del visor -->
+      <?php if ($ext === 'pdf'): ?>
+        <iframe id="pdfViewer" src="../books/<?= rawurlencode($file) ?>"></iframe>
 
-    <?php else: ?>
-      <div class="alert alert-warning">⚠️ Unsupported file type: <?= htmlspecialchars($ext) ?></div>
-    <?php endif; ?>
-  <?php endif; ?>
-</div>
+      <?php elseif ($ext === 'epub'): ?>
+        <div id="epub-reader" class="epub-container border d-flex align-items-center justify-content-center">
+          <p>📘 Cargando EPUB...</p>
+        </div>
+        <script src="../assets/js/epub.min.js"></script>
+        <script>
+          const book = ePub("../books/<?= rawurlencode($file) ?>");
+          const rendition = book.renderTo("epub-reader", { width: "100%", height: "90vh" });
+          rendition.display();
+          rendition.on("relocated", location => {
+            book.locations.then(locations => {
+              const currentLocation = book.locations.locationFromCfi(location.start.cfi);
+              document.getElementById("pagina_actual").value = currentLocation || 0;
+            });
+          });
+          book.ready.then(() => book.locations.generate(1000));
+        </script>
+
+      <?php else: ?>
+        <div class="alert alert-warning">⚠️ Tipo de archivo no soportado: <?= htmlspecialchars($ext) ?></div>
+      <?php endif; ?>
+    </div>
+  </div>
+</body>
+
 </body>
 </html>
